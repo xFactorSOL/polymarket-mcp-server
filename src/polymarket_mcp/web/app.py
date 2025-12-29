@@ -27,6 +27,7 @@ from ..config import load_config, PolymarketConfig
 from ..auth import create_polymarket_client, PolymarketClient
 from ..utils import get_rate_limiter, create_safety_limits_from_config, SafetyLimits
 from ..tools import market_discovery, market_analysis
+from pydantic import BaseModel as PydanticBaseModel
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -64,7 +65,7 @@ stats = {
 }
 
 
-class ConfigUpdateRequest(BaseModel):
+class ConfigUpdateRequest(PydanticBaseModel):
     """Request model for configuration updates"""
     max_order_size_usd: float
     max_total_exposure_usd: float
@@ -74,6 +75,14 @@ class ConfigUpdateRequest(BaseModel):
     enable_autonomous_trading: bool
     require_confirmation_above_usd: float
     auto_cancel_on_large_spread: bool
+
+
+class SetupRequest(PydanticBaseModel):
+    """Request model for initial setup"""
+    demo_mode: bool
+    polygon_address: str = ""
+    polygon_private_key: str = ""
+    chain_id: int = 137
 
 
 async def load_mcp_config():
@@ -86,8 +95,8 @@ async def load_mcp_config():
 
         # Initialize client
         client = create_polymarket_client(
-            private_key=config.POLYGON_PRIVATE_KEY,
-            address=config.POLYGON_ADDRESS,
+            private_key=config.get_private_key(),
+            address=config.get_address(),
             chain_id=config.POLYMARKET_CHAIN_ID,
             api_key=config.POLYMARKET_API_KEY,
             api_secret=config.POLYMARKET_PASSPHRASE,
@@ -107,8 +116,12 @@ async def load_mcp_config():
 @app.on_event("startup")
 async def startup_event():
     """Initialize dashboard on startup"""
-    await load_mcp_config()
-    logger.info("Polymarket MCP Dashboard started")
+    try:
+        await load_mcp_config()
+        logger.info("Polymarket MCP Dashboard started")
+    except Exception as e:
+        logger.error(f"Failed to load config on startup: {e}")
+        # Continue anyway - setup wizard will handle configuration
 
 
 @app.on_event("shutdown")
@@ -124,22 +137,80 @@ async def shutdown_event():
 # HTML Pages
 # ============================================================================
 
+@app.get("/setup", response_class=HTMLResponse)
+async def setup_page(request: Request):
+    """Setup wizard page"""
+    stats["requests_total"] += 1
+    return templates.TemplateResponse("setup.html", {
+        "request": request,
+    })
+
+
+@app.post("/api/setup")
+async def save_setup(setup_data: SetupRequest):
+    """Save initial setup configuration"""
+    stats["api_calls"] += 1
+    
+    try:
+        # In Render, we can't write to .env files, so we provide instructions
+        # For now, we'll store in a simple format and show instructions
+        config_instructions = {
+            "DEMO_MODE": str(setup_data.demo_mode).lower(),
+            "POLYGON_ADDRESS": setup_data.polygon_address,
+            "POLYGON_PRIVATE_KEY": setup_data.polygon_private_key,
+            "POLYMARKET_CHAIN_ID": str(setup_data.chain_id)
+        }
+        
+        # Return instructions for setting environment variables in Render
+        return JSONResponse({
+            "success": True,
+            "message": "Configuration received. Please set these environment variables in Render:",
+            "instructions": {
+                "step1": "Go to your Render service dashboard",
+                "step2": "Navigate to Environment tab",
+                "step3": "Add the following environment variables:",
+                "variables": config_instructions,
+                "step4": "Save and redeploy your service"
+            },
+            "note": "For security, private keys should be set as environment variables in Render, not stored in code."
+        })
+    except Exception as e:
+        stats["errors"] += 1
+        logger.error(f"Setup failed: {e}")
+        return JSONResponse({
+            "success": False,
+            "error": str(e)
+        }, status_code=500)
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard_home(request: Request):
     """Dashboard home page"""
     stats["requests_total"] += 1
+    
+    # Check if this is first run (no config loaded)
+    needs_setup = config is None or (config.is_demo_mode() and not config.POLYGON_ADDRESS)
+    if needs_setup:
+        return templates.TemplateResponse("setup.html", {
+            "request": request,
+        })
 
     # Calculate uptime
     uptime = datetime.now() - stats["uptime_start"]
 
-    # Get MCP status
-    mcp_status = {
-        "connected": config is not None and client is not None,
-        "mode": "FULL" if (client and client.has_api_credentials()) else "READ-ONLY",
-        "address": config.POLYGON_ADDRESS if config else "Not configured",
-        "chain_id": config.POLYMARKET_CHAIN_ID if config else None,
-        "tools_available": 45 if (client and client.has_api_credentials()) else 25,
-    }
+        # Get MCP status
+        if config:
+            mode = "DEMO" if config.is_demo_mode() else ("FULL" if (client and client.has_api_credentials()) else "READ-ONLY")
+        else:
+            mode = "NOT CONFIGURED"
+        
+        mcp_status = {
+            "connected": config is not None and client is not None,
+            "mode": mode,
+            "address": config.get_address() if config else "Not configured",
+            "chain_id": config.POLYMARKET_CHAIN_ID if config else None,
+            "tools_available": 45 if (client and client.has_api_credentials() and config and not config.is_demo_mode()) else 25,
+        }
 
     return templates.TemplateResponse("index.html", {
         "request": request,
@@ -170,10 +241,11 @@ async def config_page(request: Request):
                 "auto_cancel_on_large_spread": config.AUTO_CANCEL_ON_LARGE_SPREAD,
             },
             "wallet": {
-                "address": config.POLYGON_ADDRESS,
+                "address": config.get_address(),
                 "chain_id": config.POLYMARKET_CHAIN_ID,
             },
             "has_api_credentials": client.has_api_credentials() if client else False,
+            "is_demo_mode": config.is_demo_mode() if config else True,
         }
 
     return templates.TemplateResponse("config.html", {
@@ -235,15 +307,15 @@ async def get_status():
             "error": "MCP not configured"
         })
 
-    return JSONResponse({
-        "connected": True,
-        "address": config.POLYGON_ADDRESS,
-        "chain_id": config.POLYMARKET_CHAIN_ID,
-        "has_api_credentials": client.has_api_credentials(),
-        "mode": "FULL" if client.has_api_credentials() else "READ-ONLY",
-        "tools_available": 45 if client.has_api_credentials() else 25,
-        "rate_limits": get_rate_limiter().get_status(),
-    })
+        return JSONResponse({
+            "connected": True,
+            "address": config.get_address(),
+            "chain_id": config.POLYMARKET_CHAIN_ID,
+            "has_api_credentials": client.has_api_credentials(),
+            "mode": "DEMO" if config.is_demo_mode() else ("FULL" if client.has_api_credentials() else "READ-ONLY"),
+            "tools_available": 45 if (client.has_api_credentials() and not config.is_demo_mode()) else 25,
+            "rate_limits": get_rate_limiter().get_status(),
+        })
 
 
 @app.get("/api/test-connection")

@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polymarket MCP - Setup Wizard</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .setup-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .setup-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+        }
+        .setup-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .setup-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .setup-header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--border-color);
+            z-index: 0;
+        }
+        .step {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+        }
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--border-color);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s;
+        }
+        .step.active .step-number {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .step.completed .step-number {
+            background: #10b981;
+            color: white;
+        }
+        .step-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+        .step.active .step-label {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .form-group .help-text {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        .demo-mode-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            background: var(--border-color);
+            border-radius: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active {
+            background: #10b981;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s;
+        }
+        .toggle-switch.active::after {
+            left: 26px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 2px solid var(--border-color);
+        }
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .alert-info {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            color: #667eea;
+        }
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #10b981;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="setup-container">
+        <div class="setup-card">
+            <div class="setup-header">
+                <h1>🚀 Welcome to Polymarket MCP</h1>
+                <p>Let's get you set up in just a few steps</p>
+            </div>
+
+            <div class="step-indicator">
+                <div class="step active" id="step1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">Mode</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">Wallet</div>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-number">3</div>
+                    <div class="step-label">Review</div>
+                </div>
+            </div>
+
+            <!-- Step 1: Mode Selection -->
+            <div id="step1-content" class="step-content">
+                <h2>Choose Your Mode</h2>
+                <p class="help-text">Select how you want to use Polymarket MCP</p>
+                
+                <div class="demo-mode-toggle">
+                    <div>
+                        <strong>Demo Mode (Recommended)</strong>
+                        <p class="help-text">Read-only access - explore markets without trading</p>
+                    </div>
+                    <div class="toggle-switch active" id="demo-toggle" onclick="toggleDemoMode()"></div>
+                </div>
+
+                <div id="full-mode-info" class="hidden">
+                    <div class="alert alert-info">
+                        <strong>Full Trading Mode</strong>
+                        <p>You'll need a Polygon wallet with funds to enable trading features.</p>
+                    </div>
+                </div>
+
+                <div id="demo-mode-info">
+                    <div class="alert alert-success">
+                        <strong>Demo Mode Active</strong>
+                        <p>You can explore markets, analyze opportunities, and test features without any wallet or funds.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Wallet Configuration -->
+            <div id="step2-content" class="step-content hidden">
+                <h2>Wallet Configuration</h2>
+                <p class="help-text">Enter your Polygon wallet details (optional in demo mode)</p>
+
+                <div class="form-group">
+                    <label for="polygon-address">Polygon Wallet Address</label>
+                    <input type="text" id="polygon-address" placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                    <div class="help-text">Your Polygon wallet address (starts with 0x)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="polygon-private-key">Private Key</label>
+                    <input type="password" id="polygon-private-key" placeholder="Enter private key (without 0x)">
+                    <div class="help-text">Your wallet's private key (64 hex characters, no 0x prefix)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="chain-id">Network</label>
+                    <select id="chain-id">
+                        <option value="137">Polygon Mainnet</option>
+                        <option value="80002">Amoy Testnet</option>
+                    </select>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>⚠️ Security Note</strong>
+                    <p>Your credentials are stored securely in environment variables. Never share your private key.</p>
+                </div>
+            </div>
+
+            <!-- Step 3: Review -->
+            <div id="step3-content" class="step-content hidden">
+                <h2>Review Configuration</h2>
+                <p class="help-text">Review your settings before saving</p>
+
+                <div class="form-group">
+                    <strong>Mode:</strong> <span id="review-mode">Demo Mode</span>
+                </div>
+                <div class="form-group">
+                    <strong>Address:</strong> <span id="review-address">Demo Address</span>
+                </div>
+                <div class="form-group">
+                    <strong>Network:</strong> <span id="review-network">Polygon Mainnet</span>
+                </div>
+
+                <div class="alert alert-success">
+                    <strong>✅ Ready to Deploy</strong>
+                    <p>Your configuration will be saved and the server will restart with your settings.</p>
+                </div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-secondary" id="prev-btn" onclick="previousStep()" style="display: none;">Previous</button>
+                <button class="btn btn-primary" id="next-btn" onclick="nextStep()">Next</button>
+                <button class="btn btn-primary hidden" id="save-btn" onclick="saveConfiguration()">Save & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let isDemoMode = true;
+
+        function toggleDemoMode() {
+            isDemoMode = !isDemoMode;
+            const toggle = document.getElementById('demo-toggle');
+            const demoInfo = document.getElementById('demo-mode-info');
+            const fullInfo = document.getElementById('full-mode-info');
+            
+            if (isDemoMode) {
+                toggle.classList.add('active');
+                demoInfo.classList.remove('hidden');
+                fullInfo.classList.add('hidden');
+            } else {
+                toggle.classList.remove('active');
+                demoInfo.classList.add('hidden');
+                fullInfo.classList.remove('hidden');
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < 3) {
+                document.getElementById(`step${currentStep}-content`).classList.add('hidden');
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                document.getElementById(`step${currentStep}`).classList.add('completed');
+                
+                currentStep++;
+                
+                document.getElementById(`step${currentStep}-content`).classList.remove('hidden');
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                
+                if (currentStep === 2 && isDemoMode) {
+                    // Skip wallet config in demo mode
+                    nextStep();
+                    return;
+                }
+                
+                updateButtons();
+                if (currentStep === 3) {
+                    updateReview();
+                }
+            }
+        }
+
+        function previousStep() {
+            if (currentStep > 1) {
+                document.getElementById(`step${currentStep}-content`).classList.add('hidden');
+                document.getElementById(`step${currentStep}`).classList.remove('active');
+                
+                currentStep--;
+                
+                document.getElementById(`step${currentStep}-content`).classList.remove('hidden');
+                document.getElementById(`step${currentStep}`).classList.add('active');
+                document.getElementById(`step${currentStep}`).classList.remove('completed');
+                
+                updateButtons();
+            }
+        }
+
+        function updateButtons() {
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const saveBtn = document.getElementById('save-btn');
+            
+            prevBtn.style.display = currentStep > 1 ? 'block' : 'none';
+            
+            if (currentStep === 3) {
+                nextBtn.classList.add('hidden');
+                saveBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                saveBtn.classList.add('hidden');
+            }
+        }
+
+        function updateReview() {
+            document.getElementById('review-mode').textContent = isDemoMode ? 'Demo Mode' : 'Full Trading Mode';
+            const address = document.getElementById('polygon-address').value || 'Demo Address';
+            document.getElementById('review-address').textContent = address.substring(0, 10) + '...' + address.substring(address.length - 8);
+            const chainId = document.getElementById('chain-id').value;
+            document.getElementById('review-network').textContent = chainId === '137' ? 'Polygon Mainnet' : 'Amoy Testnet';
+        }
+
+        async function saveConfiguration() {
+            const config = {
+                demo_mode: isDemoMode,
+                polygon_address: document.getElementById('polygon-address').value || '',
+                polygon_private_key: document.getElementById('polygon-private-key').value || '',
+                chain_id: parseInt(document.getElementById('chain-id').value)
+            };
+
+            try {
+                const response = await fetch('/api/setup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    alert('Configuration saved! Redirecting to dashboard...');
+                    window.location.href = '/';
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error saving configuration: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

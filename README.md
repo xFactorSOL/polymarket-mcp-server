@@ -246,36 +246,22 @@ pip install -e .
 
 ### Configuration
 
-**Option 1: DEMO Mode** (easiest)
-```bash
-cp .env.example .env
-# Edit .env and set:
-DEMO_MODE=true
-```
+**🎯 Easy Setup via Web UI (Recommended)**
+
+After deploying to Render, visit your dashboard URL and use the beautiful setup wizard to configure everything securely through the web interface. No need to edit files manually!
+
+**Option 1: DEMO Mode** (Default - No wallet needed)
+- The app defaults to DEMO mode for safety
+- Use the web setup wizard to configure
+- Perfect for exploring markets without trading
 
 **Option 2: Full Trading Mode**
-```bash
-cp .env.example .env
-# Edit with your Polygon wallet credentials
-nano .env
-```
+- Use the web setup wizard to enter your wallet credentials
+- Credentials are stored securely as environment variables
+- Never commit credentials to code
 
-**Required credentials (Full Mode):**
-```env
-POLYGON_PRIVATE_KEY=your_private_key_without_0x_prefix
-POLYGON_ADDRESS=0xYourPolygonAddress
-```
-
-**Recommended Safety Limits:**
-```env
-MAX_ORDER_SIZE_USD=1000
-MAX_TOTAL_EXPOSURE_USD=5000
-MAX_POSITION_SIZE_PER_MARKET=2000
-MIN_LIQUIDITY_REQUIRED=10000
-MAX_SPREAD_TOLERANCE=0.05
-ENABLE_AUTONOMOUS_TRADING=true
-REQUIRE_CONFIRMATION_ABOVE_USD=500
-```
+**Safety Limits:**
+All safety limits can be configured through the web dashboard interface. Default values provide safe trading limits.
 
 ### Claude Desktop Integration
 

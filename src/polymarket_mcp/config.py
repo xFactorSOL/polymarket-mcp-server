@@ -1,17 +1,17 @@
 """
 Configuration management for Polymarket MCP server.
-Loads and validates environment variables with proper defaults.
+Simplified, bulletproof configuration that always works.
 """
 import os
 from typing import Optional
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class PolymarketConfig(BaseSettings):
     """
     Configuration settings for Polymarket MCP server.
-    Loads from environment variables with validation.
+    Simplified validation - always defaults to demo mode if credentials missing.
     """
 
     model_config = SettingsConfigDict(
@@ -21,13 +21,13 @@ class PolymarketConfig(BaseSettings):
         extra="ignore"
     )
 
-    # DEMO MODE - Run without real credentials (read-only)
+    # DEMO MODE - Default to True for safety
     DEMO_MODE: bool = Field(
-        default=False,
+        default=True,
         description="Run in demo mode without real wallet (read-only, no trading)"
     )
 
-    # Required Polygon Wallet Configuration (optional in DEMO_MODE)
+    # Polygon Wallet Configuration (optional - defaults to demo values)
     POLYGON_PRIVATE_KEY: str = Field(
         default="",
         description="Polygon wallet private key (without 0x prefix)"
@@ -41,7 +41,7 @@ class PolymarketConfig(BaseSettings):
         description="Polygon chain ID (137 for mainnet, 80002 for Amoy testnet)"
     )
 
-    # Optional L2 API Credentials (auto-created if not provided)
+    # Optional L2 API Credentials
     POLYMARKET_API_KEY: Optional[str] = Field(
         default=None,
         description="L2 API key for authenticated requests"
@@ -123,19 +123,15 @@ class PolymarketConfig(BaseSettings):
 
     @field_validator("POLYGON_PRIVATE_KEY")
     @classmethod
-    def validate_private_key(cls, v: str, info) -> str:
-        """Validate private key format (skipped in DEMO_MODE)"""
-        # If value is empty, always allow it through - model_validator will handle DEMO_MODE logic
-        # This is defensive: field validators run early and may not have access to all env vars
+    def validate_private_key(cls, v: str) -> str:
+        """Validate private key format - allow empty (will use demo)"""
         if not v or v.strip() == "":
-            # Always return empty - let model_validator decide if this is valid based on DEMO_MODE
-            return ""
+            return ""  # Empty is OK - will use demo credentials
         
-        # Value is not empty - validate format
         # Remove 0x prefix if present
         if v.startswith("0x"):
             v = v[2:]
-        # Check if valid hex
+        # Validate format
         if len(v) != 64:
             raise ValueError("POLYGON_PRIVATE_KEY must be 64 hex characters")
         try:
@@ -146,13 +142,11 @@ class PolymarketConfig(BaseSettings):
 
     @field_validator("POLYGON_ADDRESS")
     @classmethod
-    def validate_address(cls, v: str, info) -> str:
-        """Validate Polygon address format (skipped in DEMO_MODE)"""
-        # If value is empty, always allow it through - model_validator will handle DEMO_MODE logic
-        # This is defensive: field validators run early and may not have access to all env vars
+    def validate_address(cls, v: str) -> str:
+        """Validate Polygon address format - allow empty (will use demo)"""
         if not v or v.strip() == "":
-            # Always return empty - let model_validator decide if this is valid based on DEMO_MODE
-            return ""
+            return ""  # Empty is OK - will use demo credentials
+        
         if not v.startswith("0x"):
             raise ValueError("POLYGON_ADDRESS must start with 0x")
         if len(v) != 42:
@@ -177,58 +171,27 @@ class PolymarketConfig(BaseSettings):
             raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
         return v
 
-    @model_validator(mode='after')
-    def set_demo_credentials(self):
-        """Set demo credentials if DEMO_MODE is enabled or credentials are missing"""
-        # Check if DEMO_MODE is enabled (handle both bool and string)
-        demo_mode = self.DEMO_MODE
-        if isinstance(demo_mode, str):
-            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
-        
-        # Also check environment variable as fallback (in case it wasn't parsed correctly)
-        if not demo_mode:
-            demo_mode_str = os.getenv('DEMO_MODE', '').lower()
-            demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
-        
-        # Check if credentials are missing
-        credentials_missing = (
-            (not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "") or
-            (not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "")
-        )
-        
-        # Check if DEMO_MODE is EXPLICITLY false (not just missing/undefined/default)
-        demo_mode_explicitly_false = False
+    def get_private_key(self) -> str:
+        """Get private key, using demo if not set"""
+        if self.POLYGON_PRIVATE_KEY and self.POLYGON_PRIVATE_KEY.strip():
+            return self.POLYGON_PRIVATE_KEY
+        return "0000000000000000000000000000000000000000000000000000000000000001"
+
+    def get_address(self) -> str:
+        """Get address, using demo if not set"""
+        if self.POLYGON_ADDRESS and self.POLYGON_ADDRESS.strip():
+            return self.POLYGON_ADDRESS
+        return "0x0000000000000000000000000000000000000001"
+
+    def is_demo_mode(self) -> bool:
+        """Check if running in demo mode"""
+        # If credentials are missing, it's demo mode
+        if not self.POLYGON_PRIVATE_KEY or not self.POLYGON_ADDRESS:
+            return True
+        # Check DEMO_MODE flag
         if isinstance(self.DEMO_MODE, str):
-            demo_mode_explicitly_false = self.DEMO_MODE.lower() in ('false', '0', 'no', 'off')
-        elif self.DEMO_MODE is False:
-            demo_mode_explicitly_false = True
-        
-        # Check if user has started providing credentials (partial credentials)
-        has_partial_credentials = (
-            (self.POLYGON_PRIVATE_KEY and self.POLYGON_PRIVATE_KEY.strip() != "") or
-            (self.POLYGON_ADDRESS and self.POLYGON_ADDRESS.strip() != "")
-        )
-        
-        # ONLY raise error if:
-        # 1. DEMO_MODE is EXPLICITLY false (not just missing)
-        # 2. AND credentials are missing
-        # 3. AND user has started providing credentials (meaning they intended to provide them)
-        # Otherwise, default to demo mode (safe and permissive)
-        if demo_mode_explicitly_false and credentials_missing and has_partial_credentials:
-            raise ValueError(
-                "POLYGON_PRIVATE_KEY and POLYGON_ADDRESS are required "
-                "(or set DEMO_MODE=true for read-only access)"
-            )
-        
-        # Set demo values if in demo mode OR credentials are missing
-        # This is the safe default - always use demo mode unless explicitly disabled with full credentials
-        if demo_mode or credentials_missing:
-            if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
-                self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
-            if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
-                self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
-        
-        return self
+            return self.DEMO_MODE.lower() in ('true', '1', 'yes', 'on')
+        return bool(self.DEMO_MODE)
 
     def has_api_credentials(self) -> bool:
         """Check if L2 API credentials are configured"""
@@ -254,11 +217,6 @@ class PolymarketConfig(BaseSettings):
 def load_config() -> PolymarketConfig:
     """
     Load configuration from environment variables.
-
-    Returns:
-        PolymarketConfig: Validated configuration object
-
-    Raises:
-        ValidationError: If required variables are missing or invalid
+    Always succeeds - defaults to demo mode if credentials missing.
     """
     return PolymarketConfig()

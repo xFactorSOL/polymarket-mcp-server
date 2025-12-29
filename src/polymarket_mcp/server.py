@@ -58,8 +58,13 @@ async def list_tools() -> list[types.Tool]:
     tools.extend(market_discovery.get_tools())
     tools.extend(market_analysis.get_tools())
 
-    # Only available with API credentials
-    has_credentials = polymarket_client and polymarket_client.has_api_credentials()
+    # Only available with API credentials and not in demo mode
+    has_credentials = (
+        polymarket_client and 
+        polymarket_client.has_api_credentials() and
+        config and 
+        not config.is_demo_mode()
+    )
 
     if has_credentials:
         # Trading tools (require L2 auth)
@@ -301,8 +306,8 @@ async def initialize_server() -> None:
         # Initialize Polymarket client
         logger.info("Initializing Polymarket client...")
         polymarket_client = create_polymarket_client(
-            private_key=config.POLYGON_PRIVATE_KEY,
-            address=config.POLYGON_ADDRESS,
+            private_key=config.get_private_key(),
+            address=config.get_address(),
             chain_id=config.POLYMARKET_CHAIN_ID,
             api_key=config.POLYMARKET_API_KEY,
             api_secret=config.POLYMARKET_PASSPHRASE,
@@ -312,7 +317,7 @@ async def initialize_server() -> None:
         # Create API credentials if not provided (optional - allows read-only mode)
         # Skip API credential creation in DEMO_MODE
         if not polymarket_client.has_api_credentials():
-            if config.DEMO_MODE:
+            if config.is_demo_mode():
                 logger.info("DEMO_MODE enabled - skipping API credential creation")
                 logger.info("Continuing in READ-ONLY mode")
                 logger.info("Available: Market Discovery (8 tools) + Market Analysis (10 tools)")
@@ -367,11 +372,12 @@ async def initialize_server() -> None:
         logger.info(f"Connected to Polymarket on chain ID {config.POLYMARKET_CHAIN_ID}")
 
         # Report available tools based on authentication
-        if polymarket_client.has_api_credentials():
+        if polymarket_client.has_api_credentials() and not config.is_demo_mode():
             logger.info("Mode: FULL (authenticated)")
             logger.info("Available tools: 45 total (8 Discovery, 10 Analysis, 12 Trading, 8 Portfolio, 7 Real-time)")
         else:
-            logger.info("Mode: READ-ONLY (no API credentials)")
+            mode = "DEMO" if config.is_demo_mode() else "READ-ONLY"
+            logger.info(f"Mode: {mode} (no API credentials)")
             logger.info("Available tools: 25 total (8 Discovery, 10 Analysis, 7 Real-time)")
             logger.info("Trading and Portfolio tools require API credentials")
 
