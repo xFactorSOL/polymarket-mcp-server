@@ -196,31 +196,36 @@ class PolymarketConfig(BaseSettings):
             (not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "")
         )
         
-        # If in demo mode, set demo values
-        if demo_mode:
-            if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
-                self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
-            if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
-                self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
-        # If credentials are missing but DEMO_MODE is not explicitly false, also set demo values
-        # This handles the case where DEMO_MODE might not be set but we want to be permissive
-        elif credentials_missing:
-            # Only set demo values if DEMO_MODE is not explicitly false
-            demo_mode_explicitly_false = (
-                (isinstance(self.DEMO_MODE, str) and self.DEMO_MODE.lower() in ('false', '0', 'no', 'off')) or
-                (self.DEMO_MODE is False)
+        # If in demo mode OR credentials are missing, set demo values
+        # This is very permissive - if credentials are missing, we default to demo mode
+        # Only require credentials if DEMO_MODE is EXPLICITLY set to false AND credentials are provided
+        if demo_mode or credentials_missing:
+            # Check if DEMO_MODE is EXPLICITLY false (not just missing/undefined)
+            demo_mode_explicitly_false = False
+            if isinstance(self.DEMO_MODE, str):
+                demo_mode_explicitly_false = self.DEMO_MODE.lower() in ('false', '0', 'no', 'off')
+            elif self.DEMO_MODE is False:
+                demo_mode_explicitly_false = True
+            
+            # Only require credentials if DEMO_MODE is explicitly false AND we have partial credentials
+            # (meaning user started to provide them but didn't finish)
+            has_partial_credentials = (
+                (self.POLYGON_PRIVATE_KEY and self.POLYGON_PRIVATE_KEY.strip() != "") or
+                (self.POLYGON_ADDRESS and self.POLYGON_ADDRESS.strip() != "")
             )
-            if not demo_mode_explicitly_false:
-                if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
-                    self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
-                if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
-                    self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
-            else:
-                # DEMO_MODE is explicitly false and credentials are missing - raise error
+            
+            # If DEMO_MODE is explicitly false AND we have partial credentials, that's an error
+            if demo_mode_explicitly_false and has_partial_credentials and credentials_missing:
                 raise ValueError(
                     "POLYGON_PRIVATE_KEY and POLYGON_ADDRESS are required "
                     "(or set DEMO_MODE=true for read-only access)"
                 )
+            
+            # Otherwise, set demo values (safe default)
+            if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
+                self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
+            if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
+                self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
         
         return self
 
