@@ -310,24 +310,31 @@ async def initialize_server() -> None:
         )
 
         # Create API credentials if not provided (optional - allows read-only mode)
+        # Skip API credential creation in DEMO_MODE
         if not polymarket_client.has_api_credentials():
-            logger.info("No API credentials found. Attempting to create...")
-            try:
-                await polymarket_client.create_api_credentials()
-                logger.info(
-                    "API credentials created successfully! "
-                    "Save these to your .env file for future use:"
-                )
-                logger.info(f"POLYMARKET_API_KEY={polymarket_client.api_creds.api_key}")
-                logger.info(
-                    f"POLYMARKET_PASSPHRASE={polymarket_client.api_creds.api_passphrase}"
-                )
-            except Exception as e:
-                logger.warning(f"Could not create API credentials: {e}")
+            if config.DEMO_MODE:
+                logger.info("DEMO_MODE enabled - skipping API credential creation")
                 logger.info("Continuing in READ-ONLY mode")
                 logger.info("Available: Market Discovery (8 tools) + Market Analysis (10 tools)")
                 logger.info("Unavailable: Trading (12 tools) + Portfolio (8 tools)")
-                logger.info("To enable trading, fund your wallet or configure existing API credentials")
+            else:
+                logger.info("No API credentials found. Attempting to create...")
+                try:
+                    await polymarket_client.create_api_credentials()
+                    logger.info(
+                        "API credentials created successfully! "
+                        "Save these to your .env file for future use:"
+                    )
+                    logger.info(f"POLYMARKET_API_KEY={polymarket_client.api_creds.api_key}")
+                    logger.info(
+                        f"POLYMARKET_PASSPHRASE={polymarket_client.api_creds.api_passphrase}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not create API credentials: {e}")
+                    logger.info("Continuing in READ-ONLY mode")
+                    logger.info("Available: Market Discovery (8 tools) + Market Analysis (10 tools)")
+                    logger.info("Unavailable: Trading (12 tools) + Portfolio (8 tools)")
+                    logger.info("To enable trading, fund your wallet or configure existing API credentials")
 
         # Initialize safety limits
         logger.info("Initializing safety limits...")
