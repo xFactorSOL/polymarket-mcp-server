@@ -125,27 +125,13 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_private_key(cls, v: str, info) -> str:
         """Validate private key format (skipped in DEMO_MODE)"""
-        # Check DEMO_MODE FIRST from environment variable directly
-        demo_mode_str = os.getenv('DEMO_MODE', '').lower()
-        demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
-        
-        # Also check from info.data if available (after parsing)
-        if not demo_mode:
-            demo_mode_raw = info.data.get('DEMO_MODE', False)
-            if isinstance(demo_mode_raw, str):
-                demo_mode = demo_mode_raw.lower() in ('true', '1', 'yes', 'on')
-            elif isinstance(demo_mode_raw, bool):
-                demo_mode = demo_mode_raw
-
-        # In DEMO mode, skip ALL validation - return empty string (model_validator will set it)
-        if demo_mode:
-            return ""  # Return empty, model_validator will set demo value
-
-        # Normal validation for non-demo mode - only validate if NOT in demo mode
+        # If value is empty, always allow it through - model_validator will handle DEMO_MODE logic
+        # This is defensive: field validators run early and may not have access to all env vars
         if not v or v.strip() == "":
-            raise ValueError(
-                "POLYGON_PRIVATE_KEY is required (or set DEMO_MODE=true for read-only access)"
-            )
+            # Always return empty - let model_validator decide if this is valid based on DEMO_MODE
+            return ""
+        
+        # Value is not empty - validate format
         # Remove 0x prefix if present
         if v.startswith("0x"):
             v = v[2:]
@@ -162,27 +148,11 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_address(cls, v: str, info) -> str:
         """Validate Polygon address format (skipped in DEMO_MODE)"""
-        # Check DEMO_MODE FIRST from environment variable directly
-        demo_mode_str = os.getenv('DEMO_MODE', '').lower()
-        demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
-        
-        # Also check from info.data if available (after parsing)
-        if not demo_mode:
-            demo_mode_raw = info.data.get('DEMO_MODE', False)
-            if isinstance(demo_mode_raw, str):
-                demo_mode = demo_mode_raw.lower() in ('true', '1', 'yes', 'on')
-            elif isinstance(demo_mode_raw, bool):
-                demo_mode = demo_mode_raw
-
-        # In DEMO mode, skip ALL validation - return empty string (model_validator will set it)
-        if demo_mode:
-            return ""  # Return empty, model_validator will set demo value
-
-        # Normal validation for non-demo mode - only validate if NOT in demo mode
+        # If value is empty, always allow it through - model_validator will handle DEMO_MODE logic
+        # This is defensive: field validators run early and may not have access to all env vars
         if not v or v.strip() == "":
-            raise ValueError(
-                "POLYGON_ADDRESS is required (or set DEMO_MODE=true for read-only access)"
-            )
+            # Always return empty - let model_validator decide if this is valid based on DEMO_MODE
+            return ""
         if not v.startswith("0x"):
             raise ValueError("POLYGON_ADDRESS must start with 0x")
         if len(v) != 42:
@@ -209,18 +179,48 @@ class PolymarketConfig(BaseSettings):
 
     @model_validator(mode='after')
     def set_demo_credentials(self):
-        """Set demo credentials if DEMO_MODE is enabled"""
-        # Check if DEMO_MODE is enabled
+        """Set demo credentials if DEMO_MODE is enabled or credentials are missing"""
+        # Check if DEMO_MODE is enabled (handle both bool and string)
         demo_mode = self.DEMO_MODE
         if isinstance(demo_mode, str):
             demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
         
-        # If in demo mode and credentials are empty, set demo values
+        # Also check environment variable as fallback (in case it wasn't parsed correctly)
+        if not demo_mode:
+            demo_mode_str = os.getenv('DEMO_MODE', '').lower()
+            demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
+        
+        # Check if credentials are missing
+        credentials_missing = (
+            (not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "") or
+            (not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "")
+        )
+        
+        # If in demo mode, set demo values
         if demo_mode:
             if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
                 self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
             if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
                 self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
+        # If credentials are missing but DEMO_MODE is not explicitly false, also set demo values
+        # This handles the case where DEMO_MODE might not be set but we want to be permissive
+        elif credentials_missing:
+            # Only set demo values if DEMO_MODE is not explicitly false
+            demo_mode_explicitly_false = (
+                (isinstance(self.DEMO_MODE, str) and self.DEMO_MODE.lower() in ('false', '0', 'no', 'off')) or
+                (self.DEMO_MODE is False)
+            )
+            if not demo_mode_explicitly_false:
+                if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
+                    self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
+                if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
+                    self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
+            else:
+                # DEMO_MODE is explicitly false and credentials are missing - raise error
+                raise ValueError(
+                    "POLYGON_PRIVATE_KEY and POLYGON_ADDRESS are required "
+                    "(or set DEMO_MODE=true for read-only access)"
+                )
         
         return self
 
