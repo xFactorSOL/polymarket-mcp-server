@@ -198,19 +198,19 @@ async def dashboard_home(request: Request):
     # Calculate uptime
     uptime = datetime.now() - stats["uptime_start"]
 
-        # Get MCP status
-        if config:
-            mode = "DEMO" if config.is_demo_mode() else ("FULL" if (client and client.has_api_credentials()) else "READ-ONLY")
-        else:
-            mode = "NOT CONFIGURED"
-        
-        mcp_status = {
-            "connected": config is not None and client is not None,
-            "mode": mode,
-            "address": config.get_address() if config else "Not configured",
-            "chain_id": config.POLYMARKET_CHAIN_ID if config else None,
-            "tools_available": 45 if (client and client.has_api_credentials() and config and not config.is_demo_mode()) else 25,
-        }
+    # Get MCP status
+    if config:
+        mode = "DEMO" if config.is_demo_mode() else ("FULL" if (client and client.has_api_credentials()) else "READ-ONLY")
+    else:
+        mode = "NOT CONFIGURED"
+    
+    mcp_status = {
+        "connected": config is not None and client is not None,
+        "mode": mode,
+        "address": config.get_address() if config else "Not configured",
+        "chain_id": config.POLYMARKET_CHAIN_ID if config else None,
+        "tools_available": 45 if (client and client.has_api_credentials() and config and not config.is_demo_mode()) else 25,
+    }
 
     return templates.TemplateResponse("index.html", {
         "request": request,
