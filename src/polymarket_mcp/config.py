@@ -125,11 +125,17 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_private_key(cls, v: str, info) -> str:
         """Validate private key format (skipped in DEMO_MODE)"""
-        # Get DEMO_MODE from the data being validated
-        demo_mode = info.data.get('DEMO_MODE', False)
-        # Handle string "true"/"false" from environment variables
-        if isinstance(demo_mode, str):
-            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
+        # Check DEMO_MODE from environment variable directly (before parsing)
+        demo_mode_str = os.getenv('DEMO_MODE', '').lower()
+        demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
+        
+        # Also check from info.data if available (after parsing)
+        if not demo_mode:
+            demo_mode_raw = info.data.get('DEMO_MODE', False)
+            if isinstance(demo_mode_raw, str):
+                demo_mode = demo_mode_raw.lower() in ('true', '1', 'yes', 'on')
+            elif isinstance(demo_mode_raw, bool):
+                demo_mode = demo_mode_raw
 
         # In DEMO mode, use a fixed demo private key
         if demo_mode:
@@ -156,11 +162,17 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_address(cls, v: str, info) -> str:
         """Validate Polygon address format (skipped in DEMO_MODE)"""
-        # Get DEMO_MODE from the data being validated
-        demo_mode = info.data.get('DEMO_MODE', False)
-        # Handle string "true"/"false" from environment variables
-        if isinstance(demo_mode, str):
-            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
+        # Check DEMO_MODE from environment variable directly (before parsing)
+        demo_mode_str = os.getenv('DEMO_MODE', '').lower()
+        demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
+        
+        # Also check from info.data if available (after parsing)
+        if not demo_mode:
+            demo_mode_raw = info.data.get('DEMO_MODE', False)
+            if isinstance(demo_mode_raw, str):
+                demo_mode = demo_mode_raw.lower() in ('true', '1', 'yes', 'on')
+            elif isinstance(demo_mode_raw, bool):
+                demo_mode = demo_mode_raw
 
         # In DEMO mode, use a fixed demo address
         if demo_mode:
