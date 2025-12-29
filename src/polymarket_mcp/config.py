@@ -4,7 +4,7 @@ Loads and validates environment variables with proper defaults.
 """
 import os
 from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -125,7 +125,7 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_private_key(cls, v: str, info) -> str:
         """Validate private key format (skipped in DEMO_MODE)"""
-        # Check DEMO_MODE from environment variable directly (before parsing)
+        # Check DEMO_MODE FIRST from environment variable directly
         demo_mode_str = os.getenv('DEMO_MODE', '').lower()
         demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
         
@@ -137,11 +137,11 @@ class PolymarketConfig(BaseSettings):
             elif isinstance(demo_mode_raw, bool):
                 demo_mode = demo_mode_raw
 
-        # In DEMO mode, use a fixed demo private key
+        # In DEMO mode, skip ALL validation - return empty string (model_validator will set it)
         if demo_mode:
-            return "0000000000000000000000000000000000000000000000000000000000000001"
+            return ""  # Return empty, model_validator will set demo value
 
-        # Normal validation for non-demo mode
+        # Normal validation for non-demo mode - only validate if NOT in demo mode
         if not v or v.strip() == "":
             raise ValueError(
                 "POLYGON_PRIVATE_KEY is required (or set DEMO_MODE=true for read-only access)"
@@ -162,7 +162,7 @@ class PolymarketConfig(BaseSettings):
     @classmethod
     def validate_address(cls, v: str, info) -> str:
         """Validate Polygon address format (skipped in DEMO_MODE)"""
-        # Check DEMO_MODE from environment variable directly (before parsing)
+        # Check DEMO_MODE FIRST from environment variable directly
         demo_mode_str = os.getenv('DEMO_MODE', '').lower()
         demo_mode = demo_mode_str in ('true', '1', 'yes', 'on')
         
@@ -174,11 +174,11 @@ class PolymarketConfig(BaseSettings):
             elif isinstance(demo_mode_raw, bool):
                 demo_mode = demo_mode_raw
 
-        # In DEMO mode, use a fixed demo address
+        # In DEMO mode, skip ALL validation - return empty string (model_validator will set it)
         if demo_mode:
-            return "0x0000000000000000000000000000000000000001"
+            return ""  # Return empty, model_validator will set demo value
 
-        # Normal validation for non-demo mode
+        # Normal validation for non-demo mode - only validate if NOT in demo mode
         if not v or v.strip() == "":
             raise ValueError(
                 "POLYGON_ADDRESS is required (or set DEMO_MODE=true for read-only access)"
@@ -206,6 +206,23 @@ class PolymarketConfig(BaseSettings):
         if v not in valid_levels:
             raise ValueError(f"LOG_LEVEL must be one of {valid_levels}")
         return v
+
+    @model_validator(mode='after')
+    def set_demo_credentials(self):
+        """Set demo credentials if DEMO_MODE is enabled"""
+        # Check if DEMO_MODE is enabled
+        demo_mode = self.DEMO_MODE
+        if isinstance(demo_mode, str):
+            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
+        
+        # If in demo mode and credentials are empty, set demo values
+        if demo_mode:
+            if not self.POLYGON_PRIVATE_KEY or self.POLYGON_PRIVATE_KEY.strip() == "":
+                self.POLYGON_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001"
+            if not self.POLYGON_ADDRESS or self.POLYGON_ADDRESS.strip() == "":
+                self.POLYGON_ADDRESS = "0x0000000000000000000000000000000000000001"
+        
+        return self
 
     def has_api_credentials(self) -> bool:
         """Check if L2 API credentials are configured"""
