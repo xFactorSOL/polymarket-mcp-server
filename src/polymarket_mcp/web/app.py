@@ -86,14 +86,14 @@ class SetupRequest(PydanticBaseModel):
 
 
 async def load_mcp_config():
-    """Load MCP configuration on startup"""
+    """Load MCP configuration on startup - web dashboard only, no MCP server"""
     global config, client, safety_limits
 
     try:
-        logger.info("Loading MCP configuration...")
+        logger.info("Loading configuration for web dashboard...")
         config = load_config()
 
-        # Initialize client
+        # Initialize client (for web dashboard features only)
         client = create_polymarket_client(
             private_key=config.get_private_key(),
             address=config.get_address(),
@@ -106,11 +106,11 @@ async def load_mcp_config():
         # Initialize safety limits
         safety_limits = create_safety_limits_from_config(config)
 
-        logger.info(f"Configuration loaded for address: {config.POLYGON_ADDRESS}")
+        logger.info(f"Web dashboard configuration loaded (address: {config.get_address()})")
 
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
-        logger.warning("Dashboard running without MCP connection")
+        logger.warning("Dashboard running without MCP connection - setup wizard will handle configuration")
 
 
 @app.on_event("startup")
