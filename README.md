@@ -139,6 +139,37 @@ See [WEB_DASHBOARD.md](WEB_DASHBOARD.md) for complete documentation.
 
 ---
 
+## ☁️ Deploy to Render
+
+**Deploy the web dashboard to Render in minutes!**
+
+The repository is configured for one-click deployment to Render:
+
+1. **One-Click Deploy**: Connect your GitHub repo to Render and it will auto-detect `render.yaml`
+2. **Manual Setup**: Follow the [Render Deployment Guide](RENDER_DEPLOYMENT.md)
+
+### Quick Deploy Steps
+
+1. Push this repository to GitHub
+2. Go to [Render Dashboard](https://dashboard.render.com)
+3. Click "New +" → "Blueprint"
+4. Connect your repository
+5. Configure environment variables (see `env.template`)
+6. Deploy!
+
+The dashboard will be available at your Render URL (e.g., `https://polymarket-mcp-dashboard.onrender.com`)
+
+**Features:**
+- ✅ Automatic SSL certificates
+- ✅ Free tier available (750 hours/month)
+- ✅ Auto-deploy on git push
+- ✅ Environment variable management
+- ✅ Production-ready configuration
+
+See [RENDER_DEPLOYMENT.md](RENDER_DEPLOYMENT.md) for detailed instructions.
+
+---
+
 ## 🚀 Quick Start
 
 ### One-Command Installation (Recommended)

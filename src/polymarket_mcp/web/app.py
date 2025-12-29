@@ -494,8 +494,12 @@ async def broadcast_update(message: dict):
 # Server Startup
 # ============================================================================
 
-def start(host: str = "0.0.0.0", port: int = 8080):
+def start(host: str = "0.0.0.0", port: int = None):
     """Start the web dashboard server"""
+    # Use PORT environment variable if available (for Render, Heroku, etc.)
+    if port is None:
+        port = int(os.getenv("PORT", 8080))
+    
     logger.info(f"Starting Polymarket MCP Dashboard on http://{host}:{port}")
     uvicorn.run(app, host=host, port=port)
 
