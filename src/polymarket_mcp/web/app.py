@@ -29,6 +29,10 @@ from ..utils import get_rate_limiter, create_safety_limits_from_config, SafetyLi
 from ..tools import market_discovery, market_analysis
 from pydantic import BaseModel as PydanticBaseModel
 
+# Set environment variable to indicate we're running as web server, not MCP server
+import os
+os.environ["POLYMARKET_MCP_MODE"] = "web"
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

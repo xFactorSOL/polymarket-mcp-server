@@ -5,6 +5,7 @@ Provides MCP server for Polymarket trading integration with Claude Desktop.
 """
 import asyncio
 import logging
+import os
 from typing import Any, Dict, Optional
 
 import mcp.server.stdio
@@ -361,12 +362,16 @@ async def initialize_server() -> None:
         else:
             logger.info("Trading tools NOT initialized (no API credentials - read-only mode)")
 
-        # Initialize WebSocket manager
-        logger.info("Initializing WebSocket manager...")
-        websocket_manager = WebSocketManager(config)
-        # Connect WebSocket (non-blocking)
-        asyncio.create_task(websocket_manager.connect())
-        logger.info("WebSocket manager initialized with 7 real-time tools")
+        # Initialize WebSocket manager (only if not in web mode)
+        if os.getenv("POLYMARKET_MCP_MODE") != "web":
+            logger.info("Initializing WebSocket manager...")
+            websocket_manager = WebSocketManager(config)
+            # Connect WebSocket (non-blocking)
+            asyncio.create_task(websocket_manager.connect())
+            logger.info("WebSocket manager initialized with 7 real-time tools")
+        else:
+            logger.info("Web mode detected - skipping WebSocket manager initialization")
+            websocket_manager = None
 
         logger.info("Server initialization complete!")
         logger.info(f"Connected to Polymarket on chain ID {config.POLYMARKET_CHAIN_ID}")
