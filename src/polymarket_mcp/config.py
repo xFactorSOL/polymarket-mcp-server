@@ -127,13 +127,16 @@ class PolymarketConfig(BaseSettings):
         """Validate private key format (skipped in DEMO_MODE)"""
         # Get DEMO_MODE from the data being validated
         demo_mode = info.data.get('DEMO_MODE', False)
+        # Handle string "true"/"false" from environment variables
+        if isinstance(demo_mode, str):
+            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
 
         # In DEMO mode, use a fixed demo private key
         if demo_mode:
             return "0000000000000000000000000000000000000000000000000000000000000001"
 
         # Normal validation for non-demo mode
-        if not v:
+        if not v or v.strip() == "":
             raise ValueError(
                 "POLYGON_PRIVATE_KEY is required (or set DEMO_MODE=true for read-only access)"
             )
@@ -155,13 +158,16 @@ class PolymarketConfig(BaseSettings):
         """Validate Polygon address format (skipped in DEMO_MODE)"""
         # Get DEMO_MODE from the data being validated
         demo_mode = info.data.get('DEMO_MODE', False)
+        # Handle string "true"/"false" from environment variables
+        if isinstance(demo_mode, str):
+            demo_mode = demo_mode.lower() in ('true', '1', 'yes', 'on')
 
         # In DEMO mode, use a fixed demo address
         if demo_mode:
             return "0x0000000000000000000000000000000000000001"
 
         # Normal validation for non-demo mode
-        if not v:
+        if not v or v.strip() == "":
             raise ValueError(
                 "POLYGON_ADDRESS is required (or set DEMO_MODE=true for read-only access)"
             )

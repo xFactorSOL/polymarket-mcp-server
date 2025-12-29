@@ -9,8 +9,9 @@ services:
         value: 3.12.0
       # PORT is automatically set by Render - no need to configure
       # Optional: Set DEMO_MODE for read-only access (no wallet required)
+      # Set to true for read-only mode, false for full trading mode
       - key: DEMO_MODE
-        value: false
+        value: true
         sync: false
       # Required for full trading mode (set in Render dashboard)
       - key: POLYGON_PRIVATE_KEY
